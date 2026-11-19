@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poller host</title>
+<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:1rem auto;padding:0 1rem}#qr{margin:1rem 0}li{font-family:monospace}</style>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<h1>Host</h1>
+<p id="status">Connecting to signaling…</p>
+<div id="qr"></div>
+<p><a id="link"></a></p>
+<h2>Messages</h2>
+<ul id="log"></ul>
+<script>
+const log = t => document.getElementById('log').appendChild(document.createElement('li')).textContent = `${new Date().toLocaleTimeString()} ${t}`;
+const status = t => document.getElementById('status').textContent = t;
+
+// ponytail: PeerJS public broker does signaling only; votes/messages go browser-to-browser over WebRTC.
+const peer = new Peer();
+peer.on('open', id => {
+  const url = new URL('client.html', location.href);
+  url.search = new URLSearchParams({ host: id });
+  new QRCode(document.getElementById('qr'), url.href);
+  const a = document.getElementById('link');
+  a.href = a.textContent = url.href;
+  status(`Ready. Host id: ${id}`);
+});
+peer.on('connection', conn => {
+  conn.on('open', () => log(`[${conn.peer}] connected`));
+  conn.on('data', d => {
+    log(`[${conn.peer}] ${d}`);
+    if (String(d).trim().toLowerCase() === 'ping') { conn.send('pong'); log(`→ [${conn.peer}] pong`); }
+  });
+  conn.on('close', () => log(`[${conn.peer}] disconnected`));
+});
+peer.on('error', e => status(`Error: ${e.type}`));
+</script>
+</body>
+</html>

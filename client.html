@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poller client</title>
+<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:1rem auto;padding:0 1rem}input,button{font-size:1.2rem}li{font-family:monospace}</style>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<h1>Client</h1>
+<p id="status">Connecting…</p>
+<form id="form">
+  <label for="msg">Message</label>
+  <input id="msg" value="ping" autocomplete="off">
+  <button id="send" disabled>Send</button>
+</form>
+<h2>Messages</h2>
+<ul id="log"></ul>
+<script>
+const log = t => document.getElementById('log').appendChild(document.createElement('li')).textContent = `${new Date().toLocaleTimeString()} ${t}`;
+const status = t => document.getElementById('status').textContent = t;
+const hostId = new URLSearchParams(location.search).get('host');
+
+if (!hostId) status('Missing ?host= in URL. Scan the QR code on the host page.');
+else {
+  const peer = new Peer();
+  peer.on('open', () => {
+    const conn = peer.connect(hostId, { reliable: true });
+    conn.on('open', () => { status('Connected to host'); document.getElementById('send').disabled = false; });
+    conn.on('data', d => log(`← ${d}`));
+    conn.on('close', () => { status('Disconnected'); document.getElementById('send').disabled = true; });
+    document.getElementById('form').onsubmit = e => {
+      e.preventDefault();
+      const msg = document.getElementById('msg').value;
+      if (!msg) return;
+      conn.send(msg);
+      log(`→ ${msg}`);
+    };
+  });
+  peer.on('error', e => status(`Error: ${e.type}`));
+}
+</script>
+</body>
+</html>
